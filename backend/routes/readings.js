@@ -17,10 +17,11 @@ router.post("/", async (req, res) => {
   }
 
   try {
-    const owned = await pool.query("SELECT device_id FROM devices WHERE device_id = $1", [device_id]);
+    const owned = await pool.query("SELECT device_id, voltage_threshold, current_threshold, power_threshold FROM devices WHERE device_id = $1", [device_id]);
     if (owned.rows.length === 0) {
       return res.status(404).json({ error: "This device_id hasn't been registered to an account yet" });
     }
+    const device = owned.rows[0];
 
     const result = await pool.query(
       `INSERT INTO readings (device_id, voltage, current, power, updated_at)
@@ -30,6 +31,33 @@ router.post("/", async (req, res) => {
        RETURNING *`,
       [device_id, voltage ?? null, current ?? null, power ?? null]
     );
+
+    // For the thresholds
+    const breaches = [];
+    if (device.voltage_threshold != null && voltage > device.voltage_threshold) {
+      breaches.push(`voltage (${voltage}V, threshold ${device.voltage_threshold}V)`);
+    }
+    if (device.current_threshold != null && current > device.current_threshold) {
+      breaches.push(`current (${current}A, threshold ${device.current_threshold}A)`);
+    }
+    if (device.power_threshold != null && power > device.power_threshold) {
+      breaches.push(`power (${power}W, threshold ${device.power_threshold}W)`);
+    }
+
+    if (breaches.length > 0) {
+      let message = `${device_id} is exceeding its threshold: ${breaches.join(", ")}.`;
+
+      if (device.power_threshold != null && power > device.power_threshold) {
+        const excess = power - device.power_threshold;
+        const guesses = guessAppliances(excess);
+        if (guesses.length > 0) {
+          message += ` Possible cause: ${guesses.join(" or ")}.`;
+        }
+      }
+
+      await pool.query("INSERT INTO alerts (device_id, message) VALUES ($1, $2)", [device_id, message]);
+    }
+
     res.status(200).json(result.rows[0]);
   } catch (err) {
     console.error("Insert reading error:", err);
