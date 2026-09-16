@@ -38,6 +38,9 @@ async function initDb() {
   await pool.query(`ALTER TABLE devices ADD COLUMN IF NOT EXISTS voltage_threshold NUMERIC;`);
   await pool.query(`ALTER TABLE devices ADD COLUMN IF NOT EXISTS current_threshold NUMERIC;`);
   await pool.query(`ALTER TABLE devices ADD COLUMN IF NOT EXISTS power_threshold NUMERIC;`);
+
+  // Added status
+  await pool.query(`ALTER TABLE devices ADD COLUMN IF NOT EXISTS status TEXT DEFAULT "OFF";`);
   
   // Notifications
   // Lets user know which notificaiton is dismissed or new
