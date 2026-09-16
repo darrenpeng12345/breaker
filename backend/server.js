@@ -18,7 +18,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/devices", deviceRoutes);
-app.use("/api/readings", readingsRoutes);
+app.use("/readings", readingsRoutes);
 app.use("/alerts", alertRoutes);
 
 const PORT = process.env.PORT || 4000;
