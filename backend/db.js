@@ -47,7 +47,7 @@ async function initDb() {
       device_id TEXT REFERENCES devices(device_id) ON DELETE CASCADE,
       message TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW(),
-      resolved BOOLEAN DEFAULT FALSE,
+      resolved BOOLEAN DEFAULT FALSE
     );
   `);
 
