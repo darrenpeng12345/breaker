@@ -4,6 +4,11 @@ const { requireAuth } = require("../middleware/auth");
 
 const router = express.Router();
 
+// Temp for the AI
+function guessApplicances(excessWatts) {
+  return [];
+}
+
 // POST /readings — the ESP32 calls this, no login required (devices don't
 // have accounts, people do). It only succeeds if device_id was already
 // registered to some user via POST /api/devices — that's what ties a
