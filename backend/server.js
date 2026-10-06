@@ -6,6 +6,7 @@ const authRoutes = require("./routes/auth");
 const deviceRoutes = require("./routes/devices");
 const readingsRoutes = require("./routes/readings");
 const alertRoutes = require("./routes/alerts");
+const dashboardRoutes = require("./routes/dashboard");
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/devices", deviceRoutes);
 app.use("/readings", readingsRoutes);
 app.use("/alerts", alertRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 const PORT = process.env.PORT || 4000;
 
