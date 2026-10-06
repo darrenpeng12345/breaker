@@ -8,20 +8,26 @@ router.use(requireAuth);
 
 router.get("/", async (req, res) => {
   try {
+    const params = [req.userId];
+    let deviceFilter = "";
+    if (req.query.device_id) {
+      params.push(req.query.device_id);
+      deviceFilter = "AND a.device_id = $2";
+    }
     const result = await pool.query(
       `SELECT a.*, d.nickname FROM alerts a
-      JOIN devices d ON d.device_id = a.device_id
-      WHERE d.user_id = $1 AND a.resolved = FALSE
-      ORDER BY a.created_at DESC`,
-      [req.userId]
+       JOIN devices d ON d.device_id = a.device_id
+       WHERE d.user_id = $1 AND a.resolved = FALSE ${deviceFilter}
+       ORDER BY a.created_at DESC`,
+      params
     );
     res.json(result.rows);
   } catch (err) {
     console.error("Fetch alerts error:", err);
-    res.status(500).json({error: "Could not load alerts" });
+    res.status(500).json({ error: "Could not load alerts" });
   }
 });
-
+/*
 router.put("/:id/resolve", async (req, res) => {
   try {
     const result = await pool.query(
@@ -39,5 +45,6 @@ router.put("/:id/resolve", async (req, res) => {
     res.status(500).json({ error: "Could not resolve alert" });
   }
 });
+*/
 
 module.exports = router;
