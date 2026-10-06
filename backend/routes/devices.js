@@ -86,21 +86,12 @@ router.post("/", async (req, res) => {
   }
 });
 
-/* ------------------------------------------------------------------------------------------
-   COMMENTED OUT for the demo sprint — the current frontend has no UI that calls these.
-   Uncomment when the frontend gets "turn breaker on/off" and "edit thresholds" controls.
-
-// PUT /api/devices/:device_id/status
-// Update the current breaker status
 router.put("/:device_id/status", async (req, res) => {
   const { status } = req.body;
-
   const validStatuses = ["ON", "OFF", "TRIPPED"];
 
   if (!validStatuses.includes(status)) {
-    return res.status(400).json({
-      error: "Status must be ON, OFF, or TRIPPED"
-    });
+    return res.status(400).json({ error: "Status must be ON, OFF, or TRIPPED" });
   }
 
   try {
@@ -108,7 +99,7 @@ router.put("/:device_id/status", async (req, res) => {
       `UPDATE devices
        SET status = $1
        WHERE device_id = $2 AND user_id = $3
-       RETURNING *`,
+       RETURNING ${DEVICE_COLUMNS}`,
       [status, req.params.device_id, req.userId]
     );
 
@@ -123,30 +114,50 @@ router.put("/:device_id/status", async (req, res) => {
   }
 });
 
-// PUT /api/devices/:device_id — update thresholds/nickname after registration
+// Update dashboard-editable device settings.
 router.put("/:device_id", async (req, res) => {
-  const { nickname, voltage_threshold, current_threshold, power_threshold } = req.body;
+  const {
+    nickname,
+    location,
+    voltage_threshold,
+    current_threshold,
+    power_threshold,
+    temperature_threshold,
+  } = req.body;
 
   try {
     const result = await pool.query(
       `UPDATE devices SET
          nickname = COALESCE($1, nickname),
-         voltage_threshold = $2,
-         current_threshold = $3,
-         power_threshold = $4
-       WHERE device_id = $5 AND user_id = $6
-       RETURNING *`,
-      [nickname, voltage_threshold ?? null, current_threshold ?? null, power_threshold ?? null, req.params.device_id, req.userId]
+         location = COALESCE($2, location),
+         voltage_threshold = COALESCE($3, voltage_threshold),
+         current_threshold = COALESCE($4, current_threshold),
+         power_threshold = $5,
+         temperature_threshold = COALESCE($6, temperature_threshold)
+       WHERE device_id = $7 AND user_id = $8
+       RETURNING ${DEVICE_COLUMNS}`,
+      [
+        nickname,
+        location,
+        voltage_threshold,
+        current_threshold,
+        power_threshold ?? null,
+        temperature_threshold,
+        req.params.device_id,
+        req.userId,
+      ]
     );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Device not found" });
     }
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error("Update device error:", err);
     res.status(500).json({ error: "Could not update device" });
   }
 });
------------------------------------------------------------------------------------------- */
+
 
 module.exports = router;
