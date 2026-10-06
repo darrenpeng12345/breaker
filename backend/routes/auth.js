@@ -5,12 +5,25 @@ const { pool } = require("../db");
 
 const router = express.Router();
 
+// The BreakerSense frontend logs in with an EMAIL, the original API used a USERNAME.
+// Accept either: the email is simply stored in the `username` column (lower-cased so
+// "Test@x.com" and "test@x.com" are the same account).
+function readCredentials(body) {
+  const { username, email, password } = body || {};
+  const raw = email ?? username;
+  const name = typeof raw === "string" ? raw.trim() : "";
+  return {
+    username: email !== undefined && email !== null ? name.toLowerCase() : name,
+    password,
+  };
+}
+
 // POST /api/auth/register
 router.post("/register", async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password } = readCredentials(req.body);
 
   if (!username || !password) {
-    return res.status(400).json({ error: "Username and password are required" });
+    return res.status(400).json({ error: "Email and password are required" });
   }
   if (password.length < 6) {
     return res.status(400).json({ error: "Password must be at least 6 characters" });
@@ -19,7 +32,7 @@ router.post("/register", async (req, res) => {
   try {
     const existing = await pool.query("SELECT id FROM users WHERE username = $1", [username]);
     if (existing.rows.length > 0) {
-      return res.status(409).json({ error: "That username is already taken" });
+      return res.status(409).json({ error: "An account with that email already exists" });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -31,7 +44,7 @@ router.post("/register", async (req, res) => {
     const user = result.rows[0];
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-    res.status(201).json({ token, username: user.username });
+    res.status(201).json({ token, username: user.username, email: user.username });
   } catch (err) {
     console.error("Register error:", err);
     res.status(500).json({ error: "Something went wrong creating your account" });
@@ -40,10 +53,10 @@ router.post("/register", async (req, res) => {
 
 // POST /api/auth/login
 router.post("/login", async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password } = readCredentials(req.body);
 
   if (!username || !password) {
-    return res.status(400).json({ error: "Username and password are required" });
+    return res.status(400).json({ error: "Email and password are required" });
   }
 
   try {
@@ -51,16 +64,16 @@ router.post("/login", async (req, res) => {
     const user = result.rows[0];
 
     if (!user) {
-      return res.status(401).json({ error: "Invalid username or password" });
+      return res.status(401).json({ error: "Invalid email or password" });
     }
 
     const passwordMatches = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatches) {
-      return res.status(401).json({ error: "Invalid username or password" });
+      return res.status(401).json({ error: "Invalid email or password" });
     }
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-    res.json({ token, username: user.username });
+    res.json({ token, username: user.username, email: user.username });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Something went wrong logging you in" });
