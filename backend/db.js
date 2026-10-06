@@ -1,5 +1,7 @@
 const { Pool } = require("pg");
 
+types.setTypeParser(1700, (val) => (val === null ? null : parseFloat(val)));
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
@@ -41,6 +43,11 @@ async function initDb() {
 
   // Added status
   await pool.query(`ALTER TABLE devices ADD COLUMN IF NOT EXISTS status TEXT DEFAULT "OFF";`);
+
+
+  await pool.query(`ALTER TABLE devices ADD COLUMN IF NOT EXISTS location TEXT;`);          // "Panel A / Line 01"
+  await pool.query(`ALTER TABLE devices ADD COLUMN IF NOT EXISTS capacity_amps NUMERIC;`);  // "Capacity (amps)"
+  await pool.query(`ALTER TABLE devices ADD COLUMN IF NOT EXISTS temperature_threshold NUMERIC;`);
   
   // Notifications
   // Lets user know which notificaiton is dismissed or new
@@ -54,6 +61,10 @@ async function initDb() {
     );
   `);
 
+  await pool.query(`ALTER TABLE alerts ADD COLUMN IF NOT EXISTS title TEXT;`);
+  await pool.query(`ALTER TABLE alerts ADD COLUMN IF NOT EXISTS severity TEXT DEFAULT 'Medium';`);
+  await pool.query(`ALTER TABLE alerts ADD COLUMN IF NOT EXISTS metric TEXT;`);
+  
   await pool.query(`
     CREATE TABLE IF NOT EXISTS readings (
       device_id TEXT PRIMARY KEY REFERENCES devices(device_id) ON DELETE CASCADE,
@@ -63,6 +74,26 @@ async function initDb() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
+
+
+  await pool.query(`ALTER TABLE readings ADD COLUMN IF NOT EXISTS temperature NUMERIC;`);
+
+  // NEW — append-only history (one row per POST /readings) for the trend chart + uptime.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS readings_log (
+      id BIGSERIAL PRIMARY KEY,
+      device_id TEXT NOT NULL REFERENCES devices(device_id) ON DELETE CASCADE,
+      voltage NUMERIC,
+      current NUMERIC,
+      power NUMERIC,
+      temperature NUMERIC,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS readings_log_device_time_idx ON readings_log (device_id, created_at DESC);`
+  );
+  
 
   console.log("Database tables ready");
 }
